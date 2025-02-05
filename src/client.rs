@@ -17,7 +17,7 @@ pub struct Client {
     http_client: reqwest::Client,
     #[builder(default)]
     base_url: String,
-    #[builder(default)]
+    #[builder(default = default_api_key())]
     api_key: secrecy::SecretString,
     #[builder(default)]
     version: String,
@@ -29,12 +29,24 @@ impl Default for Client {
     fn default() -> Self {
         Self {
             http_client: reqwest::Client::new(),
-            api_key: String::new().into(), // Default env?
+            api_key: default_api_key(), // Default env?
             version: "2023-06-01".to_string(),
             beta: None,
             base_url: BASE_URL.to_string(),
         }
     }
+}
+
+fn default_api_key() -> secrecy::SecretString {
+    if cfg!(test) {
+        return "test".into();
+    }
+    std::env::var("ANTHROPIC_API_KEY")
+        .unwrap_or_else(|_| {
+            tracing::warn!("Default Anthropic client initialized without api key");
+            String::new()
+        })
+        .into()
 }
 
 impl Client {
