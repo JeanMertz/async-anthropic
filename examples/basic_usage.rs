@@ -1,30 +1,25 @@
 // examples/basic_usage.rs
 
-use anthropic_sdk::Client;
-use serde_json::json;
+use anthropic_sdk::{
+    types::{CreateMessagesRequestBuilder, MessageBuilder, MessageRole},
+    Client,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let secret_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_default();
+    let client = Client::default();
 
-    let request = Client::new()
-        .version("2023-06-01")
-        // Set verbose to true if you need return the response as it is from Anthropic
-        // .verbose(true)
-        .auth(secret_key.as_str())
-        .model("claude-3-opus-20240229")
-        .messages(&json!([
-            {"role": "user", "content": "Write me a poem about bravery"}
-        ]))
-        .max_tokens(1024)
-        .build()?;
+    let request = CreateMessagesRequestBuilder::default()
+        .model("claude-3-5-sonnet-20241022")
+        .messages(vec![MessageBuilder::default()
+            .role(MessageRole::User)
+            .content("Hello claude!!")
+            .build()
+            .unwrap()])
+        .build()
+        .unwrap();
 
-    if let Err(error) = request
-        .execute(|text| async move { println!("{text}") })
-        .await
-    {
-        eprintln!("Error: {error}");
-    }
+    let response = client.messages().create(request).await?;
 
     Ok(())
 }

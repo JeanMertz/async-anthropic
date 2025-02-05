@@ -10,6 +10,26 @@ use crate::{errors::AnthropicError, messages::Messages};
 
 const BASE_URL: &str = "https://api.anthropic.com";
 
+/// Main entry point for the Anthropic API
+///
+/// By default will use the `ANTHROPIC_API_KEY` environment variable
+///
+/// # Example
+///
+/// ```no_run
+/// # use crate::types::*;
+/// let request = CreateMessagesRequestBuilder::default()
+///    .model("claude-3.5-sonnet")
+///    .messages(vec![MessageBuilder::default()
+///        .role("user")
+///        .content("Hello world!")
+///        .build()
+///        .unwrap()])
+///    .build()
+///    .unwrap();
+///
+/// client.messages().create(request).await.unwrap();
+/// ```
 #[derive(Clone, Debug, Builder)]
 #[builder(setter(into, strip_option))]
 pub struct Client {
@@ -50,14 +70,27 @@ fn default_api_key() -> secrecy::SecretString {
 }
 
 impl Client {
+    /// Build a new client from an API key
+    pub fn from_api_key(api_key: impl Into<secrecy::SecretString>) -> Self {
+        Self {
+            api_key: api_key.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Create a new client builder
     pub fn builder() -> ClientBuilder {
         ClientBuilder::default()
     }
 
+    /// Call the messages api
     pub fn messages(&self) -> Messages {
         Messages::new(self)
     }
 
+    /// Make post request to the API
+    ///
+    /// This includes all headers and error handling
     pub async fn post<I, O>(&self, path: &str, request: I) -> Result<O, AnthropicError>
     where
         I: Serialize,
@@ -99,100 +132,4 @@ impl Client {
             }
         }
     }
-
-    // pub fn build(self) -> Result<Request, ReqwestError> {
-    //     let mut body_map: HashMap<&str, Value> = HashMap::new();
-    //     body_map.insert("model", json!(self.model));
-    //     body_map.insert("max_tokens", json!(self.max_tokens));
-    //     body_map.insert("messages", json!(self.messages));
-    //     body_map.insert("stream", json!(self.stream));
-    //     body_map.insert("temperature", json!(self.temperature));
-    //     body_map.insert("system", json!(self.system));
-    //
-    //     if self.tools != Value::Null {
-    //         body_map.insert("tools", self.tools.clone());
-    //     }
-    //     if let Some(tool_choice) = self.tool_choice {
-    //         body_map.insert("tool_choice", json!(tool_choice));
-    //     }
-    //
-    //     if self.metadata != Value::Null {
-    //         body_map.insert("metadata", self.metadata.clone());
-    //     }
-    //
-    //     if self.stop_sequences.len() > 0 {
-    //         body_map.insert("stop_sequences", json!(self.stop_sequences));
-    //     }
-    //
-    //     if let Some(top_k) = self.top_k {
-    //         body_map.insert("top_k", json!(top_k));
-    //     }
-    //
-    //     if let Some(top_p) = self.top_p {
-    //         body_map.insert("top_p", json!(top_p));
-    //     }
-    //
-    //     let mut request_builder = self
-    //         .client
-    //         .post(format!("{}/{MESSAGES_PATH}", self.base_url))
-    //         .header("x-api-key", self.secret_key)
-    //         .header("anthropic-version", self.version)
-    //         .header("content-type", "application/json")
-    //         .json(&body_map);
-    //
-    //     if let Some(beta_value) = self.beta {
-    //         request_builder = request_builder.header("anthropic-beta", beta_value);
-    //     }
-    //
-    //     Ok(Request {
-    //         request_builder,
-    //         stream: self.stream,
-    //         verbose: self.verbose,
-    //         tools: self.tools,
-    //     })
-    // }
-    //
-    // pub fn builder(self) -> Result<RequestBuilder, ReqwestError> {
-    //     let mut body_map: HashMap<&str, Value> = HashMap::new();
-    //     body_map.insert("model", json!(self.model));
-    //     body_map.insert("max_tokens", json!(self.max_tokens));
-    //     body_map.insert("messages", json!(self.messages));
-    //     body_map.insert("stream", json!(self.stream));
-    //     body_map.insert("temperature", json!(self.temperature));
-    //     body_map.insert("system", json!(self.system));
-    //
-    //     if self.tools != Value::Null {
-    //         body_map.insert("tools", self.tools.clone());
-    //     }
-    //
-    //     if self.metadata != Value::Null {
-    //         body_map.insert("metadata", self.metadata.clone());
-    //     }
-    //
-    //     if self.stop_sequences.len() > 0 {
-    //         body_map.insert("stop_sequences", json!(self.stop_sequences));
-    //     }
-    //
-    //     if let Some(top_k) = self.top_k {
-    //         body_map.insert("top_k", json!(top_k));
-    //     }
-    //
-    //     if let Some(top_p) = self.top_p {
-    //         body_map.insert("top_p", json!(top_p));
-    //     }
-    //
-    //     let mut request_builder = self
-    //         .client
-    //         .post(self.base_url)
-    //         .header("x-api-key", self.secret_key)
-    //         .header("anthropic-version", self.version)
-    //         .header("content-type", "application/json")
-    //         .json(&body_map);
-    //
-    //     if let Some(beta_value) = self.beta {
-    //         request_builder = request_builder.header("anthropic-beta", beta_value);
-    //     }
-    //
-    //     Ok(request_builder)
-    // }
 }
