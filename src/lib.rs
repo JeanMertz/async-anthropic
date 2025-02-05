@@ -9,8 +9,12 @@ use std::collections::HashMap;
 use crate::types::AnthropicErrorMessage;
 pub use types::ToolChoice;
 
+const BASE_URL: &str = "https://api.anthropic.com/";
+const MESSAGES_PATH: &str = "v1/messages";
+
 pub struct Client {
     client: ReqwestClient,
+    base_url: String,
     secret_key: String,
     model: String,
     messages: Value,
@@ -61,6 +65,7 @@ impl Client {
             beta: None,
             top_k: None,
             top_p: None,
+            base_url: BASE_URL.to_string(),
         }
     }
 
@@ -143,6 +148,11 @@ impl Client {
         self
     }
 
+    pub fn base_url(mut self, base_url: &str) -> Self {
+        self.base_url = base_url.to_owned();
+        self
+    }
+
     pub fn build(self) -> Result<Request, ReqwestError> {
         let mut body_map: HashMap<&str, Value> = HashMap::new();
         body_map.insert("model", json!(self.model));
@@ -177,7 +187,7 @@ impl Client {
 
         let mut request_builder = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(format!("{}/{MESSAGES_PATH}", self.base_url))
             .header("x-api-key", self.secret_key)
             .header("anthropic-version", self.version)
             .header("content-type", "application/json")
@@ -226,7 +236,7 @@ impl Client {
 
         let mut request_builder = self
             .client
-            .post("https://api.anthropic.com/v1/messages")
+            .post(self.base_url)
             .header("x-api-key", self.secret_key)
             .header("anthropic-version", self.version)
             .header("content-type", "application/json")
@@ -240,6 +250,7 @@ impl Client {
     }
 }
 
+#[derive(Debug)]
 pub struct Request {
     request_builder: RequestBuilder,
     stream: bool,
@@ -259,6 +270,7 @@ impl Request {
             .await
             .context("Failed to send request")?;
 
+        dbg!(&response);
         match response.status() {
             StatusCode::OK => {
                 if self.stream {

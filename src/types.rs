@@ -43,7 +43,7 @@ pub struct AnthropicChatCompletionChunk {
     pub event_type: String,
     pub index: Option<usize>,
     pub delta: Option<AnthropicTextDelta>,
-    pub message: Option<AnthropicMessage>
+    pub message: Option<AnthropicMessage>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -61,7 +61,7 @@ pub struct AnthropicErrorDetails {
     pub message: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum ToolChoice {
     Auto,
     Any,
@@ -74,9 +74,17 @@ impl Serialize for ToolChoice {
         S: Serializer,
     {
         match self {
-            ToolChoice::Auto => serde::Serialize::serialize(&serde_json::json!({"type": "auto"}), serializer),
-            ToolChoice::Any => serde::Serialize::serialize(&serde_json::json!({"type": "any"}), serializer),
-            ToolChoice::Tool(name) => serde::Serialize::serialize(&serde_json::json!({"type": "tool", "name": name}), serializer),
+            ToolChoice::Auto => {
+                serde::Serialize::serialize(&serde_json::json!({"type": "auto"}), serializer)
+            }
+            ToolChoice::Any => {
+                serde::Serialize::serialize(&serde_json::json!({"type": "any"}), serializer)
+            }
+            ToolChoice::Tool(name) => serde::Serialize::serialize(
+                &serde_json::json!({"type": "tool", "name": name}),
+                serializer,
+            ),
         }
     }
 }
+
