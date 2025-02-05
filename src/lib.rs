@@ -315,7 +315,11 @@ impl Request {
                                                 &cleaned_string,
                                             ) {
                                                 Ok(error_message) => {
-                                                    return Err(anyhow!("{}: {}", error_message.error.error_type, error_message.error.message));
+                                                    return Err(anyhow!(
+                                                        "{}: {}",
+                                                        error_message.error.error_type,
+                                                        error_message.error.message
+                                                    ));
                                                 }
                                                 Err(_) => {
                                                     eprintln!(

@@ -1,12 +1,10 @@
 // examples/tool_use_usage.rs
 
 use anthropic_sdk::{Client, ToolChoice};
-use dotenv::dotenv;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
     let secret_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_default();
 
     let request = Client::new()

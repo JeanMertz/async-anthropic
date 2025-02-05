@@ -1,13 +1,11 @@
 // examples/streaming_usage.rs
 
 use anthropic_sdk::Client;
-use dotenv::dotenv;
 use serde_json::json;
 use std::sync::{Arc, Mutex};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    dotenv().ok();
     let secret_key = std::env::var("ANTHROPIC_API_KEY").unwrap_or_default();
 
     let request = Client::new()
