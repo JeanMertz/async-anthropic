@@ -14,11 +14,14 @@ const BASE_URL: &str = "https://api.anthropic.com";
 /// # Example
 ///
 /// ```no_run
-/// # use crate::types::*;
+/// # use async_anthropic::types::*;
+/// # async fn run() {
+/// let client = async_anthropic::Client::default();
+///
 /// let request = CreateMessagesRequestBuilder::default()
 ///    .model("claude-3.5-sonnet")
 ///    .messages(vec![MessageBuilder::default()
-///        .role("user")
+///        .role(MessageRole::User)
 ///        .content("Hello world!")
 ///        .build()
 ///        .unwrap()])
@@ -26,6 +29,7 @@ const BASE_URL: &str = "https://api.anthropic.com";
 ///    .unwrap();
 ///
 /// client.messages().create(request).await.unwrap();
+/// # }
 /// ```
 #[derive(Clone, Debug, Builder)]
 #[builder(setter(into, strip_option))]
