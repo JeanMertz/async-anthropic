@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: debug
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-Dwarnings"
+  TAVILY_API_KEY: noop
+  KWAAK_OPENAI_API_KEY: noop
+  KWAAK_GITHUB_TOKEN: noop
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Required for copypasta builds on linux
+      # Temporary fix until docker runs properly in ci
+      - name: "Test"
+        run: cargo test -j 2
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # Required for copypasta builds on linux
+      - name: Check typos
+        uses: crate-ci/typos@master
+      - name: "Rustfmt"
+        run: cargo fmt --all --check
+      # - name: Lint dependencies
+      #   uses: EmbarkStudios/cargo-deny-action@v2
+      - name: clippy
+        run: cargo clippy --all-targets --all-features
