@@ -24,6 +24,21 @@ pub struct Message {
     content: MessageContentList<MessageContent>,
 }
 
+impl Message {
+    /// Returns all the tool uses in the message
+    pub fn tool_uses(&self) -> Vec<ToolUse> {
+        self.content
+            .0
+            .iter()
+            .filter(|c| matches!(c, MessageContent::ToolUse(_)))
+            .map(|c| match c {
+                MessageContent::ToolUse(tool_use) => tool_use.clone(),
+                _ => unreachable!(),
+            })
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageContentList<T>(Vec<T>);
 
@@ -96,32 +111,94 @@ pub struct CreateMessagesResponse {
     pub usage: Option<Usage>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+impl CreateMessagesResponse {
+    /// Returns the content as Messages so they are more easily reusable
+    pub fn messages(&self) -> Vec<Message> {
+        let Some(content) = &self.content else {
+            return vec![];
+        };
+        content
+            .iter()
+            .map(|c| Message {
+                role: MessageRole::Assistant,
+                content: c.clone().into(),
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum MessageContent {
-    ToolUse {
-        id: String,
-        input: Value,
-        name: String,
-    },
-    ToolResult {
-        tool_use_id: String,
-        content: Option<String>,
-        is_error: bool,
-    },
-    Text {
-        text: String,
-    },
-    // #[serde(untagged)]
-    // Text(String),
+    ToolUse(ToolUse),
+    ToolResult(ToolResult),
+    Text(Text),
     // TODO: Implement images and documents
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolUse {
+    pub id: String,
+    pub input: Value,
+    pub name: String,
+}
+
+impl From<ToolUse> for MessageContent {
+    fn from(tool_use: ToolUse) -> Self {
+        MessageContent::ToolUse(tool_use)
+    }
+}
+
+impl From<ToolUse> for MessageContentList<MessageContent> {
+    fn from(tool_use: ToolUse) -> Self {
+        MessageContentList(vec![tool_use.into()])
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolResult {
+    pub tool_use_id: String,
+    pub content: Option<String>,
+    pub is_error: bool,
+}
+
+impl From<ToolResult> for MessageContent {
+    fn from(tool_result: ToolResult) -> Self {
+        MessageContent::ToolResult(tool_result)
+    }
+}
+
+impl From<ToolResult> for MessageContentList<MessageContent> {
+    fn from(tool_result: ToolResult) -> Self {
+        MessageContentList(vec![tool_result.into()])
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct Text {
+    pub text: String,
+}
+
+impl From<Text> for MessageContent {
+    fn from(text: Text) -> Self {
+        MessageContent::Text(text)
+    }
+}
+
+impl From<Text> for MessageContentList<MessageContent> {
+    fn from(text: Text) -> Self {
+        MessageContentList(vec![text.into()])
+    }
 }
 
 impl<S: AsRef<str>> From<S> for MessageContent {
     fn from(s: S) -> Self {
-        MessageContent::Text {
+        MessageContent::Text(Text {
             text: s.as_ref().to_string(),
-        }
+        })
     }
 }
 
@@ -145,6 +222,12 @@ impl<S: AsRef<str>> From<S> for MessageContent {
 impl<S: AsRef<str>> From<S> for MessageContentList<MessageContent> {
     fn from(s: S) -> Self {
         MessageContentList(vec![s.as_ref().into()])
+    }
+}
+
+impl From<MessageContent> for MessageContentList<MessageContent> {
+    fn from(content: MessageContent) -> Self {
+        MessageContentList(vec![content])
     }
 }
 

@@ -67,8 +67,8 @@ async fn test_successful_request_execution() {
     let result = client.messages().create(request).await.unwrap();
 
     if let Some(content) = result.content {
-        if let MessageContent::Text { text } = &content[0] {
-            assert_eq!(text, "mocked response");
+        if let MessageContent::Text(text) = &content[0] {
+            assert_eq!(text.text, "mocked response");
         }
     }
 }
@@ -108,8 +108,8 @@ async fn test_streaming_response() {
     let result = client.messages().create(request).await.unwrap();
 
     if let Some(content) = result.content {
-        if let MessageContent::Text { text } = &content[0] {
-            assert_eq!(text, "streamed chunk");
+        if let MessageContent::Text(text) = &content[0] {
+            assert_eq!(text.text, "streamed chunk");
         }
     }
 }
