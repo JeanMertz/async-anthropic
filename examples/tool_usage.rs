@@ -15,7 +15,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     messages.push(
         MessageBuilder::default()
             .role(MessageRole::User)
-            .content("What is the weather like in San Fransisco?")
+            .content("What is the weather like in San Francisco?")
             .build()
             .unwrap(),
     );
