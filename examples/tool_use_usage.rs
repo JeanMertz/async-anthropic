@@ -3,7 +3,7 @@
 // use anthropic_sdk::{Client, ToolChoice};
 // use serde_json::json;
 
-use anthropic_sdk::{
+use async_anthropic::{
     types::{CreateMessagesRequestBuilder, MessageBuilder, MessageRole, ToolChoice},
     Client,
 };

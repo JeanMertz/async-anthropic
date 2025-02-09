@@ -1,6 +1,6 @@
 // examples/basic_usage.rs
 
-use anthropic_sdk::{
+use async_anthropic::{
     types::{CreateMessagesRequestBuilder, MessageBuilder, MessageRole},
     Client,
 };

@@ -1,14 +1,14 @@
 [package]
-name = "anthropic-sdk"
-version = "0.1.5"
+name = "async-anthropic"
+version = "0.1.0"
 edition = "2021"
-authors = ["Kayode Ojo <hello@mixpeal.com>"]
+authors = ["Timon Vonk <timon@bosun.ai>"]
 license = "MIT"
-homepage = "https://github.com/mixpeal/anthropic-sdk"
-repository = "https://github.com/mixpeal/anthropic-sdk"
+homepage = "https://github.com/bosun-ai/async-anthropic"
+repository = "https://github.com/bosun-ai/async-anthropic"
 categories = ["api-bindings", "web-programming", "asynchronous"]
 keywords = ["llm", "anthropic", "ai", "gpt", "claude"]
-description = "Anthropic Rust SDK."
+description = "Anthropic Rust Client."
 readme = "README.md"
 
 [dependencies]

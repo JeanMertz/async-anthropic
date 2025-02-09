@@ -1,6 +1,8 @@
-use anthropic_sdk::errors::{AnthropicError, CreateMessagesError};
-use anthropic_sdk::messages::{CreateMessagesRequestBuilder, MessageBuilder, MessageContent};
-use anthropic_sdk::Client;
+use async_anthropic::errors::{AnthropicError, CreateMessagesError};
+use async_anthropic::types::{
+    CreateMessagesRequestBuilder, MessageBuilder, MessageContent, MessageRole,
+};
+use async_anthropic::Client;
 use async_trait::async_trait;
 use serde_json::json;
 use wiremock::matchers::{method, path};
@@ -55,7 +57,7 @@ async fn test_successful_request_execution() {
         .model("test-model".to_string())
         .stream(true)
         .messages(vec![MessageBuilder::default()
-            .role("user")
+            .role(MessageRole::User)
             .content("Hello world!")
             .build()
             .unwrap()])
@@ -96,7 +98,7 @@ async fn test_streaming_response() {
         .model("test-model".to_string())
         .stream(true)
         .messages(vec![MessageBuilder::default()
-            .role("user")
+            .role(MessageRole::User)
             .content("Hello world!")
             .build()
             .unwrap()])
@@ -135,7 +137,7 @@ async fn test_error_handling_bad_request() {
         .model("test-model".to_string())
         .stream(true)
         .messages(vec![MessageBuilder::default()
-            .role("user")
+            .role(MessageRole::User)
             .content("Hello world!")
             .build()
             .unwrap()])
@@ -178,7 +180,7 @@ async fn test_error_handling_unauthorized() {
         .model("test-model".to_string())
         .stream(true)
         .messages(vec![MessageBuilder::default()
-            .role("user")
+            .role(MessageRole::User)
             .content("Hello world!")
             .build()
             .unwrap()])

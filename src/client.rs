@@ -1,10 +1,7 @@
-use std::collections::HashMap;
-
 use derive_builder::Builder;
 use reqwest::StatusCode;
 use secrecy::ExposeSecret;
 use serde::{de::DeserializeOwned, Serialize};
-use serde_json::Value;
 
 use crate::{errors::AnthropicError, messages::Messages};
 
