@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize, Serializer};
@@ -61,6 +61,12 @@ impl Deref for MessageContentList {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl DerefMut for MessageContentList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
