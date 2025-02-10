@@ -54,7 +54,7 @@ impl Message {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-pub struct MessageContentList(Vec<MessageContent>);
+pub struct MessageContentList(pub Vec<MessageContent>);
 
 impl Deref for MessageContentList {
     type Target = Vec<MessageContent>;
