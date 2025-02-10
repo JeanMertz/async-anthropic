@@ -17,7 +17,7 @@ pub enum ToolChoice {
     Tool(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq)]
 #[builder(setter(into, strip_option))]
 pub struct Message {
     role: MessageRole,
@@ -39,10 +39,10 @@ impl Message {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct MessageContentList<T>(Vec<T>);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageRole {
     User,
@@ -202,6 +202,16 @@ impl<S: AsRef<str>> From<S> for MessageContent {
     }
 }
 
+impl<S: AsRef<str>> From<S> for Message {
+    fn from(s: S) -> Self {
+        MessageBuilder::default()
+            .role(MessageRole::User)
+            .content(s.as_ref().to_string())
+            .build()
+            .expect("infallible")
+    }
+}
+
 // Implement for any IntoIterator where item is Into<MessageContent>
 // TODO: Uncomment when we have specialization :')
 // impl<I, T> From<I> for MessageContentList<MessageContent>
@@ -273,5 +283,20 @@ mod tests {
         "usage":{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":12}}).to_string();
 
         assert!(serde_json::from_str::<CreateMessagesResponse>(&response).is_ok());
+    }
+
+    #[test_log::test(tokio::test)]
+    async fn test_from_str() {
+        let message: Message = "Hello world!".into();
+
+        assert_eq!(
+            message,
+            Message {
+                role: MessageRole::User,
+                content: MessageContentList(vec![MessageContent::Text(Text {
+                    text: "Hello world!".to_string()
+                })])
+            }
+        );
     }
 }
