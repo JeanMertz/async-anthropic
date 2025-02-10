@@ -37,6 +37,18 @@ impl Message {
             })
             .collect()
     }
+
+    /// Returns the first text content in the message
+    pub fn text(&self) -> Option<String> {
+        self.content
+            .0
+            .iter()
+            .filter_map(|c| match c {
+                MessageContent::Text(text) => Some(text.text.clone()),
+                _ => None,
+            })
+            .next()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -298,5 +310,7 @@ mod tests {
                 })])
             }
         );
+
+        assert_eq!(message.text(), Some("Hello world!".to_string()));
     }
 }
