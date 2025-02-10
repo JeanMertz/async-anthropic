@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
@@ -20,8 +22,8 @@ pub enum ToolChoice {
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq)]
 #[builder(setter(into, strip_option))]
 pub struct Message {
-    role: MessageRole,
-    content: MessageContentList<MessageContent>,
+    pub role: MessageRole,
+    pub content: MessageContentList,
 }
 
 impl Message {
@@ -51,8 +53,16 @@ impl Message {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct MessageContentList<T>(Vec<T>);
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct MessageContentList(Vec<MessageContent>);
+
+impl Deref for MessageContentList {
+    type Target = Vec<MessageContent>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -162,7 +172,7 @@ impl From<ToolUse> for MessageContent {
     }
 }
 
-impl From<ToolUse> for MessageContentList<MessageContent> {
+impl From<ToolUse> for MessageContentList {
     fn from(tool_use: ToolUse) -> Self {
         MessageContentList(vec![tool_use.into()])
     }
@@ -182,7 +192,7 @@ impl From<ToolResult> for MessageContent {
     }
 }
 
-impl From<ToolResult> for MessageContentList<MessageContent> {
+impl From<ToolResult> for MessageContentList {
     fn from(tool_result: ToolResult) -> Self {
         MessageContentList(vec![tool_result.into()])
     }
@@ -200,7 +210,7 @@ impl From<Text> for MessageContent {
     }
 }
 
-impl From<Text> for MessageContentList<MessageContent> {
+impl From<Text> for MessageContentList {
     fn from(text: Text) -> Self {
         MessageContentList(vec![text.into()])
     }
@@ -241,13 +251,13 @@ impl<S: AsRef<str>> From<S> for Message {
 // }
 
 // Any single AsRef<str> can be converted to a MessageContent, in a list as a single item
-impl<S: AsRef<str>> From<S> for MessageContentList<MessageContent> {
+impl<S: AsRef<str>> From<S> for MessageContentList {
     fn from(s: S) -> Self {
         MessageContentList(vec![s.as_ref().into()])
     }
 }
 
-impl From<MessageContent> for MessageContentList<MessageContent> {
+impl From<MessageContent> for MessageContentList {
     fn from(content: MessageContent) -> Self {
         MessageContentList(vec![content])
     }
