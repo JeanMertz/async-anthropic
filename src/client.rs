@@ -1,7 +1,9 @@
+use backoff::{Error as BackoffError, ExponentialBackoff, ExponentialBackoffBuilder};
 use derive_builder::Builder;
 use reqwest::StatusCode;
 use secrecy::ExposeSecret;
 use serde::{de::DeserializeOwned, Serialize};
+use std::time::Duration;
 
 use crate::{errors::AnthropicError, messages::Messages};
 
@@ -44,16 +46,27 @@ pub struct Client {
     version: String,
     #[builder(default)]
     beta: Option<String>,
+    #[builder(default)]
+    backoff: ExponentialBackoff,
 }
 
 impl Default for Client {
     fn default() -> Self {
+        // Load backoff settings from configuration
+        let backoff = ExponentialBackoffBuilder::default()
+            .with_initial_interval(Duration::from_secs(15))
+            .with_multiplier(2.0)
+            .with_randomization_factor(0.05)
+            .with_max_elapsed_time(Some(Duration::from_secs(120)))
+            .build();
+
         Self {
             http_client: reqwest::Client::new(),
             api_key: default_api_key(), // Default env?
             version: "2023-06-01".to_string(),
             beta: None,
             base_url: BASE_URL.to_string(),
+            backoff,
         }
     }
 }
@@ -84,6 +97,12 @@ impl Client {
         ClientBuilder::default()
     }
 
+    /// Set a custom backoff strategy
+    pub fn with_backoff(mut self, backoff: ExponentialBackoff) -> Self {
+        self.backoff = backoff;
+        self
+    }
+
     /// Call the messages api
     pub fn messages(&self) -> Messages {
         Messages::new(self)
@@ -97,40 +116,78 @@ impl Client {
         I: Serialize,
         O: DeserializeOwned,
     {
-        let mut request = self
-            .http_client
-            .post(format!(
-                "{}/{}",
-                &self.base_url.trim_end_matches('/'),
-                &path.trim_start_matches('/')
-            ))
-            .header("x-api-key", self.api_key.expose_secret())
-            .header("anthropic-version", &self.version)
-            .header("content-type", "application/json")
-            .json(&request);
+        backoff::future::retry(self.backoff.clone(), || async {
+            let mut request = self
+                .http_client
+                .post(format!(
+                    "{}/{}",
+                    &self.base_url.trim_end_matches('/'),
+                    &path.trim_start_matches('/')
+                ))
+                .header("x-api-key", self.api_key.expose_secret())
+                .header("anthropic-version", &self.version)
+                .header("content-type", "application/json")
+                .json(&request);
 
-        if let Some(beta_value) = &self.beta {
-            request = request.header("anthropic-beta", beta_value);
-        }
+            if let Some(beta_value) = &self.beta {
+                request = request.header("anthropic-beta", beta_value);
+            }
 
-        // TODO: Better handling deserialization errors
-        // TODO: Handle status codes
-        let response = request.send().await?;
+            let response = request
+                .send()
+                .await
+                .map_err(AnthropicError::NetworkError)
+                .map_err(backoff::Error::Permanent)?;
+            let status = response.status();
 
-        match response.status() {
-            StatusCode::OK => {
-                let response = response.json::<O>().await?;
-                Ok(response)
+            // 529 is the status code for overloaded requests
+            let overloaded_status = StatusCode::from_u16(529).expect("529 is a valid status code");
+
+            match status {
+                StatusCode::OK => {
+                    let response = response
+                        .json::<O>()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Ok(response)
+                }
+                StatusCode::BAD_REQUEST => {
+                    let text = response
+                        .text()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Err(BackoffError::Permanent(AnthropicError::BadRequest(text)))
+                }
+                StatusCode::UNAUTHORIZED => {
+                    Err(BackoffError::Permanent(AnthropicError::Unauthorized))
+                }
+
+                _ if status == StatusCode::TOO_MANY_REQUESTS || status == overloaded_status => {
+                    let text = response
+                        .text()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+
+                    // Rate limited retry...
+                    tracing::warn!("Rate limited: {}", text);
+                    Err(backoff::Error::Transient {
+                        err: AnthropicError::ApiError(text),
+                        retry_after: None,
+                    })
+                }
+                _ => {
+                    let text = response
+                        .text()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Err(BackoffError::Permanent(AnthropicError::Unknown(text)))
+                }
             }
-            StatusCode::BAD_REQUEST => {
-                let text = response.text().await?;
-                Err(AnthropicError::BadRequest(text))
-            }
-            StatusCode::UNAUTHORIZED => Err(AnthropicError::Unauthorized),
-            _ => {
-                let text = response.text().await?;
-                Err(AnthropicError::Unknown(text))
-            }
-        }
+        })
+        .await
     }
 }
