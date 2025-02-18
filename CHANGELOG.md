@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/bosun-ai/async-anthropic/compare/v0.2.1...v0.3.0) - 2025-02-18
+
+### Added
+
+- Add backoff implementation (#5)
+
+### Other
+
+- Add backoff as a major feature
+
 ## [0.2.1](https://github.com/bosun-ai/async-anthropic/compare/v0.2.0...v0.2.1) - 2025-02-10
 
 ### Added
