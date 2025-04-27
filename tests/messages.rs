@@ -217,47 +217,6 @@ async fn test_default_backoff_retries() {
 }
 
 #[tokio::test]
-#[ignore = "streaming not implemented"]
-async fn test_streaming_response() {
-    let server = TestSetup::setup().await;
-    let secret_key = "test_secret";
-
-    // Mock streaming response
-    Mock::given(method("POST"))
-        .and(path("/v1/messages"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_string("event: content_block_start\ndata: {\"type\": \"text\", \"text\": \"streamed chunk\"}\n\n"))
-        .expect(1)
-        .mount(&server)
-        .await;
-
-    let client = Client::builder()
-        .base_url(server.uri())
-        .api_key(secret_key)
-        .build()
-        .unwrap();
-
-    let request = CreateMessagesRequestBuilder::default()
-        .model("test-model".to_string())
-        .stream(true)
-        .messages(vec![MessageBuilder::default()
-            .role(MessageRole::User)
-            .content("Hello world!")
-            .build()
-            .unwrap()])
-        .build()
-        .unwrap();
-
-    let result = client.messages().create(request).await.unwrap();
-
-    if let Some(content) = result.content {
-        if let MessageContent::Text(text) = &content[0] {
-            assert_eq!(text.text, "streamed chunk");
-        }
-    }
-}
-
-#[tokio::test]
 async fn test_error_handling_bad_request() {
     let server = TestSetup::setup().await;
     let secret_key = "test_secret";

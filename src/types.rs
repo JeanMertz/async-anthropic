@@ -159,6 +159,32 @@ pub enum MessageContent {
     // TODO: Implement images and documents
 }
 
+impl MessageContent {
+    pub fn as_tool_use(&self) -> Option<&ToolUse> {
+        if let MessageContent::ToolUse(tool_use) = self {
+            Some(tool_use)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_tool_result(&self) -> Option<&ToolResult> {
+        if let MessageContent::ToolResult(tool_result) = self {
+            Some(tool_result)
+        } else {
+            None
+        }
+    }
+
+    pub fn as_text(&self) -> Option<&Text> {
+        if let MessageContent::Text(text) = self {
+            Some(text)
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
 #[builder(setter(into, strip_option), default)]
 pub struct ToolUse {
@@ -203,6 +229,14 @@ impl From<ToolResult> for MessageContentList {
 #[builder(setter(into, strip_option), default)]
 pub struct Text {
     pub text: String,
+}
+
+impl<S: AsRef<str>> From<S> for Text {
+    fn from(s: S) -> Self {
+        Text {
+            text: s.as_ref().to_string(),
+        }
+    }
 }
 
 impl From<Text> for MessageContent {

@@ -241,6 +241,7 @@ where
 
     tokio::spawn(async move {
         while let Some(ev) = event_source.next().await {
+            tracing::trace!("Streaming event: {ev:?}");
             match ev {
                 Ok(event) => match event {
                     Event::Open => continue,
