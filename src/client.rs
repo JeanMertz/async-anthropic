@@ -10,6 +10,7 @@ use tokio_stream::{Stream, StreamExt as _};
 use crate::{
     errors::{map_deserialization_error, AnthropicError, StreamError},
     messages::Messages,
+    models::Models,
 };
 
 const BASE_URL: &str = "https://api.anthropic.com";
@@ -113,6 +114,10 @@ impl Client {
         Messages::new(self)
     }
 
+    pub fn models(&self) -> Models {
+        Models::new(self)
+    }
+
     fn headers(&self) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert("x-api-key", self.api_key.expose_secret().parse().unwrap());
@@ -129,6 +134,55 @@ impl Client {
             &self.base_url.trim_end_matches('/'),
             &path.trim_start_matches('/')
         )
+    }
+
+    pub async fn get<O>(&self, path: &str) -> Result<O, AnthropicError>
+    where
+        O: DeserializeOwned,
+    {
+        backoff::future::retry(self.backoff.clone(), || async {
+            let response = self
+                .http_client
+                .get(self.format_url(path))
+                .headers(self.headers())
+                .send()
+                .await
+                .map_err(AnthropicError::NetworkError)
+                .map_err(backoff::Error::Permanent)?;
+
+            let status = response.status();
+
+            match status {
+                StatusCode::OK => {
+                    let response = response
+                        .json::<O>()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Ok(response)
+                }
+                StatusCode::BAD_REQUEST => {
+                    let text = response
+                        .text()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Err(BackoffError::Permanent(AnthropicError::BadRequest(text)))
+                }
+                StatusCode::UNAUTHORIZED => {
+                    Err(BackoffError::Permanent(AnthropicError::Unauthorized))
+                }
+                _ => {
+                    let text = response
+                        .text()
+                        .await
+                        .map_err(AnthropicError::NetworkError)
+                        .map_err(backoff::Error::Permanent)?;
+                    Err(BackoffError::Permanent(AnthropicError::Unknown(text)))
+                }
+            }
+        })
+        .await
     }
 
     /// Make post request to the API

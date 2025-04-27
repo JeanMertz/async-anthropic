@@ -345,6 +345,29 @@ pub enum MessagesStreamEvent {
 pub type CreateMessagesResponseStream =
     Pin<Box<dyn Stream<Item = Result<MessagesStreamEvent, AnthropicError>> + Send>>;
 
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct ListModelsResponse {
+    #[serde(default)]
+    pub data: Vec<Model>,
+
+    #[serde(default)]
+    pub first_id: Option<String>,
+    pub has_more: bool,
+    #[serde(default)]
+    pub last_id: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct Model {
+    pub created_at: String,
+    pub display_name: String,
+    pub id: String,
+    #[serde(rename = "type")]
+    pub model_type: String,
+}
+
+pub type GetModelResponse = Model;
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
