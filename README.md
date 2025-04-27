@@ -12,7 +12,7 @@ A client for the anthropic messages api, written in Rust. There are plenty of cl
 - [x] Support all API parameters
 - [x] Automatic [backoff](https://crates.io/crates/backoff)
 - [x] Tracing
-- [ ] Streaming
+- [x] Streaming
 - [ ] Non-text messages
 
 ### Installation

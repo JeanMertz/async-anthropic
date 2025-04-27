@@ -1,10 +1,14 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    ops::{Deref, DerefMut},
+    pin::Pin,
+};
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json::Value;
+use tokio_stream::Stream;
 
-use crate::messages;
+use crate::{errors::AnthropicError, messages};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Usage {
@@ -80,48 +84,39 @@ pub enum MessageRole {
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option))]
 pub struct CreateMessagesRequest {
-    messages: Vec<Message>,
-    model: String,
+    pub messages: Vec<Message>,
+    pub model: String,
     #[builder(default = messages::DEFAULT_MAX_TOKENS)]
-    max_tokens: i32,
+    pub max_tokens: i32,
     #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    metadata: Option<serde_json::Map<String, Value>>,
+    pub metadata: Option<serde_json::Map<String, Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    stop_sequences: Option<Vec<String>>,
+    pub stop_sequences: Option<Vec<String>>,
     #[builder(default = "false")]
-    stream: bool, // Optional default false
+    pub stream: bool, // Optional default false
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    temperature: Option<f32>, // 0 < x < 1
+    pub temperature: Option<f32>, // 0 < x < 1
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    tool_choice: Option<ToolChoice>,
+    pub tool_choice: Option<ToolChoice>,
     // TODO: Type this
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    tools: Option<Vec<serde_json::Map<String, Value>>>,
+    pub tools: Option<Vec<serde_json::Map<String, Value>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    top_k: Option<u32>, // > 0
+    pub top_k: Option<u32>, // > 0
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    top_p: Option<f32>, // 0 < x < 1
+    pub top_p: Option<f32>, // 0 < x < 1
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    system: Option<String>, // 0 < x < 1
+    pub system: Option<String>, // 0 < x < 1
 }
 
-// {"id":"msg_01KkaCASJuaAgTWD2wqdbwC8",
-// "type":"message",
-// "role":"assistant",
-// "model":"claude-3-5-sonnet-20241022",
-// "content":[{"type":"text",
-// "text":"Hi! How can I help you today?"}],
-// "stop_reason":"end_turn",
-// "stop_sequence":null,
-// "usage":{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":12}}
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option))]
 pub struct CreateMessagesResponse {
@@ -240,22 +235,6 @@ impl<S: AsRef<str>> From<S> for Message {
     }
 }
 
-// Implement for any IntoIterator where item is Into<MessageContent>
-// TODO: Uncomment when we have specialization :')
-// impl<I, T> From<I> for MessageContentList<MessageContent>
-// where
-//     I: IntoIterator<Item = T>,
-//     T: Into<MessageContent>,
-// {
-//     fn from(iter: I) -> Self {
-//         MessageContentList(
-//             iter.into_iter()
-//                 .map(|item| item.into())
-//                 .collect::<Vec<MessageContent>>(),
-//         )
-//     }
-// }
-
 // Any single AsRef<str> can be converted to a MessageContent, in a list as a single item
 impl<S: AsRef<str>> From<S> for MessageContentList {
     fn from(s: S) -> Self {
@@ -269,7 +248,6 @@ impl From<MessageContent> for MessageContentList {
     }
 }
 
-// TODO: check if needed
 impl Serialize for ToolChoice {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -289,6 +267,49 @@ impl Serialize for ToolChoice {
         }
     }
 }
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum ContentBlockDelta {
+    TextDelta { text: String },
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub struct MessageDeltaUsage {
+    pub output_tokens: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
+pub struct MessageDelta {
+    pub stop_reason: Option<String>,
+    pub stop_sequence: Option<String>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum MessagesStreamEvent {
+    MessageStart {
+        message: Message,
+    },
+    ContentBlockStart {
+        index: usize,
+        content_block: MessageContent,
+    },
+    ContentBlockDelta {
+        index: usize,
+        delta: ContentBlockDelta,
+    },
+    ContentBlockStop {
+        index: usize,
+    },
+    MessageDelta {
+        delta: MessageDelta,
+        usage: MessageDeltaUsage,
+    },
+    MessageStop,
+}
+
+pub type CreateMessagesResponseStream =
+    Pin<Box<dyn Stream<Item = Result<MessagesStreamEvent, AnthropicError>> + Send>>;
 
 #[cfg(test)]
 mod tests {

@@ -1,6 +1,6 @@
 use crate::{
-    errors::CreateMessagesError,
-    types::{CreateMessagesRequest, CreateMessagesResponse},
+    errors::AnthropicError,
+    types::{CreateMessagesRequest, CreateMessagesResponse, CreateMessagesResponseStream},
     Client,
 };
 
@@ -20,12 +20,34 @@ impl Messages<'_> {
     pub async fn create(
         &self,
         request: impl Into<CreateMessagesRequest>,
-    ) -> Result<CreateMessagesResponse, CreateMessagesError> {
-        // TODO: Handle streams like a champ
-        //
+    ) -> Result<CreateMessagesResponse, AnthropicError> {
+        let mut request = request.into();
+        request.stream = false;
+
+        self.client.post("/v1/messages", request).await
+    }
+
+    #[tracing::instrument(skip_all)]
+    pub async fn create_stream(
+        &self,
+        request: impl Into<CreateMessagesRequest>,
+    ) -> CreateMessagesResponseStream {
+        let mut request = request.into();
+        request.stream = true;
+
         self.client
-            .post("/v1/messages", request.into())
+            .post_stream(
+                "/v1/messages",
+                request,
+                [
+                    "message_start",
+                    "message_delta",
+                    "message_stop",
+                    "content_block_start",
+                    "content_block_delta",
+                    "content_block_stop",
+                ],
+            )
             .await
-            .map_err(CreateMessagesError::AnthropicError)
     }
 }

@@ -1,5 +1,5 @@
 use async_anthropic::{
-    errors::{AnthropicError, CreateMessagesError},
+    errors::AnthropicError,
     types::{CreateMessagesRequestBuilder, MessageBuilder, MessageContent, MessageRole},
     Client,
 };
@@ -124,10 +124,7 @@ async fn test_with_backoff_basic() {
 
     assert!(result.is_err());
     assert!(
-        matches!(
-            result.as_ref().unwrap_err(),
-            CreateMessagesError::AnthropicError(AnthropicError::ApiError(_))
-        ),
+        matches!(result.as_ref().unwrap_err(), AnthropicError::ApiError(_)),
         "actual: {:?}",
         &result
     )
@@ -294,10 +291,7 @@ async fn test_error_handling_bad_request() {
 
     assert!(result.is_err());
     assert!(
-        matches!(
-            result.as_ref().unwrap_err(),
-            CreateMessagesError::AnthropicError(AnthropicError::BadRequest(_))
-        ),
+        matches!(result.as_ref().unwrap_err(), AnthropicError::BadRequest(_)),
         "actual: {:?}",
         &result
     )
@@ -337,10 +331,7 @@ async fn test_error_handling_unauthorized() {
 
     assert!(result.is_err());
     assert!(
-        matches!(
-            result.as_ref().unwrap_err(),
-            CreateMessagesError::AnthropicError(AnthropicError::Unauthorized)
-        ),
+        matches!(result.as_ref().unwrap_err(), AnthropicError::Unauthorized),
         "actual: {:?}",
         &result
     )
