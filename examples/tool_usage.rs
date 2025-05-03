@@ -48,13 +48,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.messages().create(request).await?;
 
     println!("1. ---");
-    println!("{:?}", response);
+    println!("{response:?}");
 
     for message in response.messages() {
         messages.push(message.clone());
 
         for tool_use in message.tool_uses() {
-            println!("Tool use: {:?}", tool_use);
+            println!("Tool use: {tool_use:?}");
             let location: String =
                 serde_json::from_value(tool_use.input["location"].clone()).unwrap();
 
@@ -64,7 +64,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .content(
                         ToolResultBuilder::default()
                             .tool_use_id(&tool_use.id)
-                            .content(format!("Pretty warm in {}", location))
+                            .content(format!("Pretty warm in {location}"))
                             .build()
                             .unwrap(),
                     )
@@ -100,7 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let response = client.messages().create(request).await?;
 
     println!("2. ---");
-    println!("{:?}", response);
+    println!("{response:?}");
 
     // 2. ---
     // CreateMessagesResponse { id: Some("msg_019EVre2rdkCFwusZpGPgzDp"), content: Some([Text(Text { text: "According to the weather report, it's pretty warm in San Francisco right now." })]), model: Some("claude-3-5-sonnet-20241022"), stop_reason: Some("end_turn"), stop_sequence: None, usage: Some(Usage { input_tokens: Some(516), output_tokens: Some(20) }) }

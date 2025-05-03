@@ -10,7 +10,7 @@ use tokio_stream::Stream;
 
 use crate::{errors::AnthropicError, messages};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Usage {
     pub input_tokens: Option<u32>,
     pub output_tokens: Option<u32>,
@@ -23,8 +23,8 @@ pub enum ToolChoice {
     Tool(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq)]
-#[builder(setter(into, strip_option))]
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq, Default)]
+#[builder(setter(into, strip_option), default)]
 pub struct Message {
     pub role: MessageRole,
     pub content: MessageContentList,
@@ -74,9 +74,10 @@ impl DerefMut for MessageContentList {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum MessageRole {
+    #[default]
     User,
     Assistant,
 }
@@ -309,11 +310,6 @@ pub enum ContentBlockDelta {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub struct MessageDeltaUsage {
-    pub output_tokens: usize,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct MessageDelta {
     pub stop_reason: Option<String>,
     pub stop_sequence: Option<String>,
@@ -323,7 +319,8 @@ pub struct MessageDelta {
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum MessagesStreamEvent {
     MessageStart {
-        message: Message,
+        message: MessageStart,
+        usage: Option<Usage>,
     },
     ContentBlockStart {
         index: usize,
@@ -338,9 +335,23 @@ pub enum MessagesStreamEvent {
     },
     MessageDelta {
         delta: MessageDelta,
-        usage: MessageDeltaUsage,
+        #[serde(default)]
+        usage: Option<Usage>,
     },
     MessageStop,
+}
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+pub struct MessageStart {
+    pub id: String,
+    pub model: String,
+    pub role: String,
+    pub content: Vec<MessageContent>,
+    #[serde(default)]
+    pub stop_reason: Option<String>,
+    #[serde(default)]
+    pub stop_sequence: Option<String>,
+    #[serde(default)]
+    pub usage: Option<Usage>,
 }
 
 pub type CreateMessagesResponseStream =
@@ -389,7 +400,35 @@ mod tests {
         "stop_sequence":null,
         "usage":{"input_tokens":10,"cache_creation_input_tokens":0,"cache_read_input_tokens":0,"output_tokens":12}}).to_string();
 
-        assert!(serde_json::from_str::<CreateMessagesResponse>(&response).is_ok());
+        let response = serde_json::from_str::<CreateMessagesResponse>(&response).unwrap();
+
+        let usage = response.usage.as_ref().unwrap();
+
+        assert_eq!(usage.input_tokens, Some(10));
+        assert_eq!(usage.output_tokens, Some(12));
+        assert_eq!(
+            response.id,
+            Some("msg_01KkaCASJuaAgTWD2wqdbwC8".to_string())
+        );
+        assert_eq!(
+            response.model,
+            Some("claude-3-5-sonnet-20241022".to_string())
+        );
+        assert_eq!(response.stop_reason, Some("end_turn".to_string()));
+        assert_eq!(response.stop_sequence, None);
+        assert_eq!(
+            response
+                .messages()
+                .first()
+                .unwrap()
+                .content
+                .first()
+                .unwrap()
+                .as_text(),
+            Some(&Text {
+                text: "Hi! How can I help you today?".to_string(),
+            })
+        );
     }
 
     #[test_log::test(tokio::test)]
@@ -402,7 +441,7 @@ mod tests {
                 role: MessageRole::User,
                 content: MessageContentList(vec![MessageContent::Text(Text {
                     text: "Hello world!".to_string()
-                })])
+                })]),
             }
         );
 

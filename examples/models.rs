@@ -8,11 +8,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let response = client.models().list().await?;
 
-    println!("{:?}", response);
+    println!("{response:?}");
 
     let response = client.models().get("claude-3-7-sonnet-20250219").await?;
 
-    println!("{:?}", response);
+    println!("{response:?}");
 
     Ok(())
 }

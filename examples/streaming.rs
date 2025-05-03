@@ -24,8 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     while let Some(response) = stream.next().await {
         match response {
-            Ok(msg) => println!("{:?}", msg),
-            Err(e) => eprintln!("Error: {:?}", e),
+            Ok(msg) => println!("{msg:?}"),
+            Err(e) => eprintln!("Error: {e:?}"),
         }
     }
 
