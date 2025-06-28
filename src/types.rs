@@ -427,13 +427,19 @@ pub enum ToolWebSearchName {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(untagged, rename_all = "snake_case")]
 pub enum System {
-    Content(SystemContent),
+    Content(Vec<SystemContent>),
     String(String),
 }
 
 impl From<String> for System {
     fn from(s: String) -> Self {
         System::String(s)
+    }
+}
+
+impl From<Text> for System {
+    fn from(text: Text) -> Self {
+        System::Content(vec![SystemContent::Text(text)])
     }
 }
 
