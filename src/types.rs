@@ -441,7 +441,7 @@ pub enum ToolWebSearchName {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(untagged, rename_all = "snake_case")]
+#[serde(untagged)]
 pub enum System {
     Content(Vec<SystemContent>),
     String(String),
@@ -619,7 +619,7 @@ impl From<Text> for MessageContentList {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, Builder)]
-#[serde(rename = "snake_case", rename_all = "snake_case", tag = "type")]
+#[serde(rename_all = "snake_case")]
 #[builder(setter(into, strip_option), default)]
 pub struct CacheControl {
     #[serde(rename = "type")]
