@@ -70,10 +70,8 @@ async fn test_successful_request_execution() {
 
     let result = client.messages().create(request).await.unwrap();
 
-    if let Some(content) = result.content {
-        if let MessageContent::Text(text) = &content[0] {
-            assert_eq!(text.text, "mocked response");
-        }
+    if let MessageContent::Text(text) = &result.content[0] {
+        assert_eq!(text.text, "mocked response");
     }
 }
 
@@ -205,10 +203,8 @@ async fn test_default_backoff_retries() {
     assert!(result.is_ok());
     let result = result.unwrap();
 
-    if let Some(content) = result.content {
-        if let MessageContent::Text(text) = &content[0] {
-            assert_eq!(text.text, "retried response");
-        }
+    if let MessageContent::Text(text) = &result.content[0] {
+        assert_eq!(text.text, "retried response");
     }
 }
 

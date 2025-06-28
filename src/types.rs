@@ -1,4 +1,5 @@
 use std::{
+    num::NonZeroU32,
     ops::{Deref, DerefMut},
     pin::Pin,
 };
@@ -159,11 +160,11 @@ pub struct CreateMessagesRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ExtendedThinking>,
     #[builder(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<serde_json::Map<String, Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub metadata: serde_json::Map<String, Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[builder(default)]
-    pub stop_sequences: Option<Vec<String>>,
+    pub stop_sequences: Vec<String>,
     #[builder(default = "false")]
     pub stream: bool, // Optional default false
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -172,10 +173,9 @@ pub struct CreateMessagesRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
     pub tool_choice: Option<ToolChoice>,
-    // TODO: Type this
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    pub tools: Option<Vec<serde_json::Map<String, Value>>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tools: Vec<Tool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
     pub top_k: Option<u32>, // > 0
@@ -184,7 +184,263 @@ pub struct CreateMessagesRequest {
     pub top_p: Option<f32>, // 0 < x < 1
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
-    pub system: Option<String>, // 0 < x < 1
+    pub system: Option<System>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum Tool {
+    Custom(CustomTool),
+
+    #[serde(untagged)]
+    Bash(ToolBash),
+
+    #[serde(untagged)]
+    CodeExecution(ToolCodeExecution),
+
+    #[serde(untagged)]
+    ComputerUse(ToolComputerUse),
+
+    #[serde(untagged)]
+    TextEditor(ToolTextEditor),
+
+    #[serde(untagged)]
+    WebSearch(ToolWebSearch),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option))]
+pub struct CustomTool {
+    pub name: String,
+    #[builder(default)]
+    pub input_schema: ToolInputSchema,
+    #[builder(default)]
+    pub description: Option<String>,
+    #[builder(default)]
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolInputSchema {
+    #[serde(rename = "type")]
+    pub kind: ToolInputSchemaKind,
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub properties: serde_json::Map<String, Value>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolInputSchemaKind {
+    #[default]
+    #[serde(with = "tags::object")]
+    Object,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolBash {
+    Bash20241022(ToolBash20241022),
+    Bash20250124(ToolBash20250124),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolBash20241022 {
+    pub name: ToolBashName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolBash20250124 {
+    #[builder(setter(skip))]
+    pub name: ToolBashName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolBashName {
+    #[default]
+    #[serde(with = "tags::bash")]
+    Bash,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolCodeExecution {
+    CodeExecution20250522(ToolCodeExecution20250522),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolCodeExecution20250522 {
+    pub name: ToolCodeExecutionName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ToolCodeExecutionName {
+    #[default]
+    #[serde(with = "tags::code_execution")]
+    CodeExecution,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolComputerUse {
+    ComputerUse20241022(ToolComputerUse20241022),
+    ComputerUse20250124(ToolComputerUse20250124),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Builder)]
+#[builder(setter(into, strip_option))]
+pub struct ToolComputerUse20241022 {
+    #[builder(default)]
+    pub name: ToolComputerUseName,
+    pub display_height_px: NonZeroU32,
+    pub display_width_px: NonZeroU32,
+    #[builder(default)]
+    pub display_number: Option<u32>,
+    #[builder(default)]
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolComputerUse20250124 {
+    pub name: ToolComputerUseName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum ToolComputerUseName {
+    #[default]
+    #[serde(with = "tags::computer_use")]
+    ComputerUse,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolTextEditor {
+    TextEditor20241022(ToolTextEditor20241022),
+    TextEditor20250124(ToolTextEditor20250124),
+    TextEditor20250429(ToolTextEditor20250429),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolTextEditor20241022 {
+    pub name: ToolTextEditorName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolTextEditor20250124 {
+    pub name: ToolTextEditorName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolTextEditor20250429 {
+    pub name: ToolTextEditorBasedEditName,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum ToolTextEditorName {
+    #[default]
+    #[serde(with = "tags::str_replace_editor")]
+    StrReplaceEditor,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum ToolTextEditorBasedEditName {
+    #[default]
+    #[serde(with = "tags::str_replace_based_edit_tool")]
+    StrReplaceBasedEditTool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ToolWebSearch {
+    WebSearch20250305(ToolWebSearch20250305),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct ToolWebSearch20250305 {
+    pub name: ToolWebSearchName,
+    #[serde(flatten)]
+    pub allowed_or_blocked_domains: Option<WebSearchAllowedOrBlockedDomains>,
+    pub max_uses: Option<NonZeroU32>,
+    pub user_location: Option<WebSearchUserLocation>,
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum WebSearchAllowedOrBlockedDomains {
+    #[serde(rename = "allowed_domains")]
+    Allowed(Vec<String>),
+    #[serde(rename = "blocked_domains")]
+    Blocked(Vec<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option), default)]
+pub struct WebSearchUserLocation {
+    #[serde(rename = "type")]
+    pub kind: WebSearchUserLocationKind,
+    pub city: Option<String>,
+    #[serde(rename = "country")]
+    pub country_iso: Option<String>,
+    pub region: Option<String>,
+    #[serde(rename = "timezone")]
+    pub timezone_iana: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum WebSearchUserLocationKind {
+    #[default]
+    #[serde(with = "tags::approximate")]
+    Approximate,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum ToolWebSearchName {
+    #[default]
+    #[serde(with = "tags::web_search")]
+    WebSearch,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged, rename_all = "snake_case")]
+pub enum System {
+    Content(SystemContent),
+    String(String),
+}
+
+impl From<String> for System {
+    fn from(s: String) -> Self {
+        System::String(s)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum SystemContent {
+    Text(Text),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
@@ -192,8 +448,8 @@ pub struct CreateMessagesRequest {
 pub struct CreateMessagesResponse {
     #[serde(default)]
     pub id: Option<String>,
-    #[serde(default)]
-    pub content: Option<Vec<MessageContent>>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content: Vec<MessageContent>,
     #[serde(default)]
     pub model: Option<String>,
     #[serde(default)]
@@ -207,10 +463,7 @@ pub struct CreateMessagesResponse {
 impl CreateMessagesResponse {
     /// Returns the content as Messages so they are more easily reusable
     pub fn messages(&self) -> Vec<Message> {
-        let Some(content) = &self.content else {
-            return vec![];
-        };
-        content
+        self.content
             .iter()
             .map(|c| Message {
                 role: MessageRole::Assistant,
@@ -275,6 +528,7 @@ pub struct ToolUse {
     pub id: String,
     pub input: Value,
     pub name: String,
+    pub cache_control: Option<CacheControl>,
 }
 
 impl From<ToolUse> for MessageContent {
@@ -295,6 +549,7 @@ pub struct ToolResult {
     pub tool_use_id: String,
     pub content: Option<String>,
     pub is_error: bool,
+    pub cache_control: Option<CacheControl>,
 }
 
 impl From<ToolResult> for MessageContent {
@@ -313,12 +568,14 @@ impl From<ToolResult> for MessageContentList {
 #[builder(setter(into, strip_option), default)]
 pub struct Text {
     pub text: String,
+    pub cache_control: Option<CacheControl>,
 }
 
 impl<S: AsRef<str>> From<S> for Text {
     fn from(s: S) -> Self {
         Text {
             text: s.as_ref().to_string(),
+            cache_control: None,
         }
     }
 }
@@ -333,6 +590,33 @@ impl From<Text> for MessageContentList {
     fn from(text: Text) -> Self {
         MessageContentList(vec![text.into()])
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize, Builder)]
+#[serde(rename = "snake_case", rename_all = "snake_case", tag = "type")]
+#[builder(setter(into, strip_option), default)]
+pub struct CacheControl {
+    #[serde(rename = "type")]
+    pub kind: CacheControlKind,
+    pub ttl: Option<CacheControlTtl>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CacheControlKind {
+    #[default]
+    #[serde(with = "tags::ephemeral")]
+    Ephemeral,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum CacheControlTtl {
+    #[default]
+    #[serde(with = "tags::ttl_5m")]
+    Ttl5Minutes,
+    #[serde(with = "tags::ttl_1h")]
+    Ttl1Hour,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default, Builder)]
@@ -374,6 +658,7 @@ impl<S: AsRef<str>> From<S> for MessageContent {
     fn from(s: S) -> Self {
         MessageContent::Text(Text {
             text: s.as_ref().to_string(),
+            cache_control: None,
         })
     }
 }
@@ -525,6 +810,56 @@ pub struct Model {
 
 pub type GetModelResponse = Model;
 
+macro_rules! named_unit_variant {
+    ($variant:tt) => {
+        named_unit_variant!($variant, stringify!($variant));
+    };
+    ($variant:ident, $name:expr) => {
+        pub mod $variant {
+            use serde::{de, Deserializer, Serializer};
+
+            pub fn serialize<S: Serializer>(ser: S) -> Result<S::Ok, S::Error> {
+                ser.serialize_str($name)
+            }
+
+            pub fn deserialize<'de, D: Deserializer<'de>>(de: D) -> Result<(), D::Error> {
+                struct V;
+                impl<'de> de::Visitor<'de> for V {
+                    type Value = ();
+
+                    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        f.write_str(concat!("\"", $name, "\""))
+                    }
+
+                    fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                        if value == $name {
+                            Ok(())
+                        } else {
+                            Err(E::invalid_value(de::Unexpected::Str(value), &self))
+                        }
+                    }
+                }
+
+                de.deserialize_str(V)
+            }
+        }
+    };
+}
+
+mod tags {
+    named_unit_variant!(ttl_5m, "5m");
+    named_unit_variant!(ttl_1h, "1h");
+    named_unit_variant!(ephemeral);
+    named_unit_variant!(computer_use);
+    named_unit_variant!(code_execution);
+    named_unit_variant!(bash);
+    named_unit_variant!(object);
+    named_unit_variant!(str_replace_editor);
+    named_unit_variant!(str_replace_based_edit_tool);
+    named_unit_variant!(web_search);
+    named_unit_variant!(approximate);
+}
+
 #[cfg(test)]
 mod tests {
     use serde_json::json;
@@ -582,6 +917,7 @@ mod tests {
                 .as_text(),
             Some(&Text {
                 text: "Hi! How can I help you today?".to_string(),
+                cache_control: None,
             })
         );
     }
@@ -595,7 +931,8 @@ mod tests {
             Message {
                 role: MessageRole::User,
                 content: MessageContentList(vec![MessageContent::Text(Text {
-                    text: "Hello world!".to_string()
+                    text: "Hello world!".to_string(),
+                    cache_control: None,
                 })]),
             }
         );

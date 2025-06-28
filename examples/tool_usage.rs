@@ -1,10 +1,10 @@
 use async_anthropic::{
     types::{
-        CreateMessagesRequestBuilder, MessageBuilder, MessageRole, ToolChoice, ToolResultBuilder,
+        CreateMessagesRequestBuilder, CustomTool, MessageBuilder, MessageRole, Tool, ToolChoice,
+        ToolInputSchema, ToolInputSchemaKind, ToolResultBuilder,
     },
     Client,
 };
-use serde_json::json;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -23,24 +23,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = CreateMessagesRequestBuilder::default()
         .model("claude-3-5-sonnet-20241022")
         .messages(messages.as_slice())
-        // TODO: Type the tool spec so we can skip the shenanigans
-        .tools([json!({
-          "name": "get_weather",
-          "description": "Get the current weather in a given location",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "location": {
-                "type": "string",
-                "description": "The city and state, e.g. San Francisco, CA"
-              }
+        .tools(vec![Tool::Custom(CustomTool {
+            name: "get_weather".to_string(),
+            description: Some("Get the current weather in a given location".to_string()),
+            input_schema: ToolInputSchema {
+                kind: ToolInputSchemaKind::Object,
+                properties: serde_json::Map::from_iter(vec![(
+                    "location".to_string(),
+                    serde_json::json!({
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }),
+                )]),
+                required: vec!["location".to_string()],
             },
-            "required": ["location"]
-          }
-        })
-        .as_object()
-        .unwrap()
-        .to_owned()])
+            cache_control: None,
+        })])
         .tool_choice(ToolChoice::auto())
         .build()
         .unwrap();
@@ -77,23 +75,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let request = CreateMessagesRequestBuilder::default()
         .model("claude-3-5-sonnet-20241022")
         .messages(messages.as_slice())
-        .tools([json!({
-          "name": "get_weather",
-          "description": "Get the current weather in a given location",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "location": {
-                "type": "string",
-                "description": "The city and state, e.g. San Francisco, CA"
-              }
+        .tools(vec![Tool::Custom(CustomTool {
+            name: "get_weather".to_string(),
+            description: Some("Get the current weather in a given location".to_string()),
+            input_schema: ToolInputSchema {
+                kind: ToolInputSchemaKind::Object,
+                properties: serde_json::Map::from_iter(vec![(
+                    "location".to_string(),
+                    serde_json::json!({
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }),
+                )]),
+                required: vec!["location".to_string()],
             },
-            "required": ["location"]
-          }
-        })
-        .as_object()
-        .unwrap()
-        .to_owned()])
+            cache_control: None,
+        })])
         .build()
         .unwrap();
 

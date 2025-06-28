@@ -1,10 +1,12 @@
 // examples/basic_usage.rs
 
 use async_anthropic::{
-    types::{CreateMessagesRequestBuilder, MessageBuilder, MessageRole},
+    types::{
+        CreateMessagesRequestBuilder, CustomTool, MessageBuilder, MessageRole, Tool,
+        ToolInputSchema, ToolInputSchemaKind,
+    },
     Client,
 };
-use serde_json::json;
 use tokio_stream::StreamExt as _;
 
 #[tokio::main]
@@ -18,23 +20,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .content("What is the weather like in San Francisco?")
             .build()
             .unwrap()])
-        .tools([json!({
-          "name": "get_weather",
-          "description": "Get the current weather in a given location",
-          "input_schema": {
-            "type": "object",
-            "properties": {
-              "location": {
-                "type": "string",
-                "description": "The city and state, e.g. San Francisco, CA"
-              }
+        .tools(vec![Tool::Custom(CustomTool {
+            name: "get_weather".to_string(),
+            description: Some("Get the current weather in a given location".to_string()),
+            input_schema: ToolInputSchema {
+                kind: ToolInputSchemaKind::Object,
+                properties: serde_json::Map::from_iter(vec![(
+                    "location".to_string(),
+                    serde_json::json!({
+                        "type": "string",
+                        "description": "The city and state, e.g. San Francisco, CA"
+                    }),
+                )]),
+                required: vec!["location".to_string()],
             },
-            "required": ["location"]
-          }
-        })
-        .as_object()
-        .unwrap()
-        .to_owned()])
+            cache_control: None,
+        })])
         .build()
         .unwrap();
 
