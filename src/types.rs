@@ -215,8 +215,10 @@ pub struct CustomTool {
     #[builder(default)]
     pub input_schema: ToolInputSchema,
     #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -250,6 +252,7 @@ pub enum ToolBash {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolBash20241022 {
     pub name: ToolBashName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -258,6 +261,7 @@ pub struct ToolBash20241022 {
 pub struct ToolBash20250124 {
     #[builder(setter(skip))]
     pub name: ToolBashName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -279,6 +283,7 @@ pub enum ToolCodeExecution {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolCodeExecution20250522 {
     pub name: ToolCodeExecutionName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -305,8 +310,10 @@ pub struct ToolComputerUse20241022 {
     pub display_height_px: NonZeroU32,
     pub display_width_px: NonZeroU32,
     #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub display_number: Option<u32>,
     #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -314,6 +321,7 @@ pub struct ToolComputerUse20241022 {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolComputerUse20250124 {
     pub name: ToolComputerUseName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -337,6 +345,7 @@ pub enum ToolTextEditor {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolTextEditor20241022 {
     pub name: ToolTextEditorName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -344,6 +353,7 @@ pub struct ToolTextEditor20241022 {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolTextEditor20250124 {
     pub name: ToolTextEditorName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -351,6 +361,7 @@ pub struct ToolTextEditor20250124 {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolTextEditor20250429 {
     pub name: ToolTextEditorBasedEditName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -382,8 +393,11 @@ pub struct ToolWebSearch20250305 {
     pub name: ToolWebSearchName,
     #[serde(flatten)]
     pub allowed_or_blocked_domains: Option<WebSearchAllowedOrBlockedDomains>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_uses: Option<NonZeroU32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_location: Option<WebSearchUserLocation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -400,11 +414,13 @@ pub enum WebSearchAllowedOrBlockedDomains {
 pub struct WebSearchUserLocation {
     #[serde(rename = "type")]
     pub kind: WebSearchUserLocationKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
-    #[serde(rename = "country")]
+    #[serde(rename = "country", default, skip_serializing_if = "Option::is_none")]
     pub country_iso: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
-    #[serde(rename = "timezone")]
+    #[serde(rename = "timezone", default, skip_serializing_if = "Option::is_none")]
     pub timezone_iana: Option<String>,
 }
 
@@ -452,17 +468,17 @@ pub enum SystemContent {
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option))]
 pub struct CreateMessagesResponse {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub content: Vec<MessageContent>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_sequence: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
 }
 
@@ -534,6 +550,7 @@ pub struct ToolUse {
     pub id: String,
     pub input: Value,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -553,8 +570,10 @@ impl From<ToolUse> for MessageContentList {
 #[builder(setter(into, strip_option), default)]
 pub struct ToolResult {
     pub tool_use_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
     pub is_error: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -574,6 +593,7 @@ impl From<ToolResult> for MessageContentList {
 #[builder(setter(into, strip_option), default)]
 pub struct Text {
     pub text: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
 }
 
@@ -604,6 +624,7 @@ impl From<Text> for MessageContentList {
 pub struct CacheControl {
     #[serde(rename = "type")]
     pub kind: CacheControlKind,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ttl: Option<CacheControlTtl>,
 }
 
@@ -629,6 +650,7 @@ pub enum CacheControlTtl {
 #[builder(setter(into, strip_option), default)]
 pub struct Thinking {
     pub thinking: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signature: Option<String>,
 }
 
@@ -747,7 +769,9 @@ pub enum ContentBlockDelta {
 
 #[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct MessageDelta {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_sequence: Option<String>,
 }
 
@@ -756,6 +780,7 @@ pub struct MessageDelta {
 pub enum MessagesStreamEvent {
     MessageStart {
         message: MessageStart,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         usage: Option<Usage>,
     },
     ContentBlockStart {
@@ -771,7 +796,7 @@ pub enum MessagesStreamEvent {
     },
     MessageDelta {
         delta: MessageDelta,
-        #[serde(default)]
+        #[serde(default, skip_serializing_if = "Option::is_none")]
         usage: Option<Usage>,
     },
     MessageStop,
@@ -782,11 +807,11 @@ pub struct MessageStart {
     pub model: String,
     pub role: String,
     pub content: Vec<MessageContent>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_reason: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub stop_sequence: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
 }
 
@@ -798,10 +823,10 @@ pub struct ListModelsResponse {
     #[serde(default)]
     pub data: Vec<Model>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub first_id: Option<String>,
     pub has_more: bool,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_id: Option<String>,
 }
 
