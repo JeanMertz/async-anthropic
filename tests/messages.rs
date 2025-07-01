@@ -120,7 +120,10 @@ async fn test_with_backoff_basic() {
 
     assert!(result.is_err());
     assert!(
-        matches!(result.as_ref().unwrap_err(), AnthropicError::RateLimit),
+        matches!(
+            result.as_ref().unwrap_err(),
+            AnthropicError::RateLimit { .. }
+        ),
         "actual: {:?}",
         &result
     )
