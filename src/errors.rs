@@ -28,8 +28,8 @@ pub enum AnthropicError {
     #[error("stream failed: {0}")]
     StreamError(StreamError),
 
-    #[error("request rate limited")]
-    RateLimit,
+    #[error("request rate limited (retry after {} seconds)", retry_after.unwrap_or_default())]
+    RateLimit { retry_after: Option<u64> },
 }
 
 #[derive(Debug, Deserialize, Clone, PartialEq, Eq, Serialize)]

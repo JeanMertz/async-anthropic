@@ -1,7 +1,7 @@
 use backon::{ExponentialBuilder, Retryable as _};
 use derive_builder::Builder;
 use reqwest::StatusCode;
-use reqwest_eventsource::{Event, EventSource, RequestBuilderExt as _};
+use reqwest_eventsource::{retry::RetryPolicy, Event, EventSource, RequestBuilderExt as _};
 use secrecy::ExposeSecret;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{pin::Pin, time::Duration};
@@ -154,7 +154,11 @@ impl Client {
         request
             .retry(self.backoff)
             .sleep(tokio::time::sleep)
-            .when(|e| matches!(e, AnthropicError::RateLimit))
+            .when(|e| matches!(e, AnthropicError::RateLimit { .. }))
+            .adjust(|err, dur| match err {
+                AnthropicError::RateLimit { retry_after } => retry_after.map(Duration::from_secs),
+                _ => dur,
+            })
             .await
     }
 
@@ -185,7 +189,11 @@ impl Client {
         request
             .retry(self.backoff)
             .sleep(tokio::time::sleep)
-            .when(|e| matches!(e, AnthropicError::RateLimit))
+            .when(|e| matches!(e, AnthropicError::RateLimit { .. }))
+            .adjust(|err, dur| match err {
+                AnthropicError::RateLimit { retry_after } => retry_after.map(Duration::from_secs),
+                _ => dur,
+            })
             .await
     }
 
@@ -208,6 +216,30 @@ impl Client {
             .unwrap();
 
         stream(event_source, event_types).await
+    }
+}
+
+struct RetryAfter(Option<u64>);
+
+impl RetryPolicy for RetryAfter {
+    fn retry(
+        &self,
+        error: &reqwest_eventsource::Error,
+        _last_retry: Option<(usize, Duration)>,
+    ) -> Option<Duration> {
+        match error {
+            reqwest_eventsource::Error::InvalidStatusCode(_, response) => response
+                .headers()
+                .get("Retry-After")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(Duration::from_secs),
+            _ => None,
+        }
+    }
+
+    fn set_reconnection_time(&mut self, duration: Duration) {
+        self.0 = Some(duration.as_secs());
     }
 }
 
@@ -235,13 +267,19 @@ where
         }
         StatusCode::UNAUTHORIZED => Err(AnthropicError::Unauthorized),
         _ if status == StatusCode::TOO_MANY_REQUESTS || status == overloaded_status => {
+            let retry_after = response
+                .headers()
+                .get("Retry-After")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.parse::<u64>().ok());
+
             let text = response
                 .text()
                 .await
                 .map_err(AnthropicError::NetworkError)?;
 
             tracing::warn!("Rate limited: {}", text);
-            Err(AnthropicError::RateLimit)
+            Err(AnthropicError::RateLimit { retry_after })
         }
         _ => {
             let text = response
@@ -264,6 +302,7 @@ where
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::spawn(async move {
+        event_source.set_retry_policy(Box::new(RetryAfter(None)));
         while let Some(ev) = event_source.next().await {
             tracing::trace!("Streaming event: {ev:?}");
             match ev {
@@ -303,21 +342,21 @@ where
                         }
                     }
                 },
-                Err(e) => {
-                    if let reqwest_eventsource::Error::StreamEnded = e {
+                Err(reqwest_eventsource::Error::StreamEnded) => break,
+                Err(
+                    reqwest_eventsource::Error::InvalidContentType(_, response)
+                    | reqwest_eventsource::Error::InvalidStatusCode(_, response),
+                ) => {
+                    if tx.send(handle_response(response).await).is_err() {
                         break;
                     }
+                }
+                Err(e) => {
                     if tx
                         .send(Err(AnthropicError::StreamError(StreamError {
                             error_type: "sse_error".to_string(),
                             message: Some(e.to_string()),
-                            error: match e {
-                                reqwest_eventsource::Error::InvalidContentType(_, response)
-                                | reqwest_eventsource::Error::InvalidStatusCode(_, response) => {
-                                    Some(response.text().await.unwrap_or_default().into())
-                                }
-                                _ => None,
-                            },
+                            error: None,
                         })))
                         .is_err()
                     {
