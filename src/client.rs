@@ -191,7 +191,9 @@ impl Client {
             .sleep(tokio::time::sleep)
             .when(|e| matches!(e, AnthropicError::RateLimit { .. }))
             .adjust(|err, dur| match err {
-                AnthropicError::RateLimit { retry_after } => retry_after.map(Duration::from_secs),
+                AnthropicError::RateLimit { retry_after } => {
+                    retry_after.map(Duration::from_secs).or(dur)
+                }
                 _ => dur,
             })
             .await
