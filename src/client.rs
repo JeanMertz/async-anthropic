@@ -1,7 +1,10 @@
 use backon::{ExponentialBuilder, Retryable as _};
 use derive_builder::Builder;
 use reqwest::StatusCode;
-use reqwest_eventsource::{retry::RetryPolicy, Event, EventSource, RequestBuilderExt as _};
+use reqwest_eventsource::{
+    retry::{ExponentialBackoff, RetryPolicy},
+    Event, EventSource, RequestBuilderExt as _,
+};
 use secrecy::ExposeSecret;
 use serde::{de::DeserializeOwned, Serialize};
 use std::{pin::Pin, time::Duration};
@@ -156,7 +159,9 @@ impl Client {
             .sleep(tokio::time::sleep)
             .when(|e| matches!(e, AnthropicError::RateLimit { .. }))
             .adjust(|err, dur| match err {
-                AnthropicError::RateLimit { retry_after } => retry_after.map(Duration::from_secs),
+                AnthropicError::RateLimit { retry_after } => {
+                    retry_after.map(Duration::from_secs).or(dur)
+                }
                 _ => dur,
             })
             .await
@@ -217,17 +222,19 @@ impl Client {
             .eventsource()
             .unwrap();
 
-        stream(event_source, event_types).await
+        stream(event_source, event_types, &self.backoff).await
     }
 }
 
-struct RetryAfter(Option<u64>);
+struct RetryAfter {
+    backoff: ExponentialBackoff,
+}
 
 impl RetryPolicy for RetryAfter {
     fn retry(
         &self,
         error: &reqwest_eventsource::Error,
-        _last_retry: Option<(usize, Duration)>,
+        last_retry: Option<(usize, Duration)>,
     ) -> Option<Duration> {
         match error {
             reqwest_eventsource::Error::InvalidStatusCode(_, response) => response
@@ -238,10 +245,11 @@ impl RetryPolicy for RetryAfter {
                 .map(Duration::from_secs),
             _ => None,
         }
+        .or(self.backoff.retry(error, last_retry))
     }
 
     fn set_reconnection_time(&mut self, duration: Duration) {
-        self.0 = Some(duration.as_secs());
+        self.backoff.set_reconnection_time(duration);
     }
 }
 
@@ -297,14 +305,22 @@ where
 async fn stream<O, const N: usize>(
     mut event_source: EventSource,
     event_types: [&'static str; N],
+    backoff: &ExponentialBuilder,
 ) -> Pin<Box<dyn Stream<Item = Result<O, AnthropicError>> + Send>>
 where
     O: DeserializeOwned + Send + 'static,
 {
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
+    let backoff = ExponentialBackoff {
+        start: backoff.min_delay(),
+        factor: backoff.factor() as f64,
+        max_duration: backoff.max_delay(),
+        max_retries: backoff.max_times(),
+    };
+
     tokio::spawn(async move {
-        event_source.set_retry_policy(Box::new(RetryAfter(None)));
+        event_source.set_retry_policy(Box::new(RetryAfter { backoff }));
         while let Some(ev) = event_source.next().await {
             tracing::trace!("Streaming event: {ev:?}");
             match ev {
