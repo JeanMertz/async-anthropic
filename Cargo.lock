@@ -131,9 +131,8 @@ checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
 
 [[package]]
 name = "backon"
-version = "1.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd0b50b1b78dbadd44ab18b3c794e496f3a139abb9fbc27d9c94c4eebbb96496"
+version = "1.5.1"
+source = "git+https://github.com/JeanMertz/backon#341ea10a868218c5b1bcdfdd168df71b5e7e8c67"
 dependencies = [
  "fastrand",
  "tokio",
