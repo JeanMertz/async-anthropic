@@ -227,7 +227,7 @@ pub struct CustomTool {
 pub struct ToolInputSchema {
     #[serde(rename = "type")]
     pub kind: ToolInputSchemaKind,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
     pub properties: serde_json::Map<String, Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required: Vec<String>,
