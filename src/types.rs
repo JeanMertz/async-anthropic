@@ -185,6 +185,9 @@ pub struct CreateMessagesRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
     pub system: Option<System>,
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
+    pub context_management: serde_json::Map<String, Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
