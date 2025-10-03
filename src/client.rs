@@ -112,11 +112,11 @@ impl Client {
     }
 
     /// Call the messages api
-    pub fn messages(&self) -> Messages {
+    pub fn messages(&self) -> Messages<'_> {
         Messages::new(self)
     }
 
-    pub fn models(&self) -> Models {
+    pub fn models(&self) -> Models<'_> {
         Models::new(self)
     }
 
