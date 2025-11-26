@@ -223,10 +223,14 @@ pub struct CustomTool {
     #[builder(default)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_control: Option<CacheControl>,
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub strict: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize, Builder)]
 #[builder(setter(into, strip_option), default)]
+#[serde(rename_all = "camelCase")]
 pub struct ToolInputSchema {
     #[serde(rename = "type")]
     pub kind: ToolInputSchemaKind,
@@ -234,6 +238,8 @@ pub struct ToolInputSchema {
     pub properties: serde_json::Map<String, Value>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub required: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub additional_properties: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
