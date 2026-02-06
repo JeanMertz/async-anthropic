@@ -83,12 +83,11 @@ impl ToolChoice {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq)]
-#[builder(setter(into))]
-pub struct ExtendedThinking {
-    #[serde(rename = "type")]
-    pub kind: String,
-    pub budget_tokens: u32,
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ExtendedThinking {
+    Enabled { budget_tokens: u32 },
+    Adaptive,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq, Default)]
@@ -188,6 +187,23 @@ pub struct CreateMessagesRequest {
     #[builder(default)]
     #[serde(default, skip_serializing_if = "serde_json::Map::is_empty")]
     pub context_management: serde_json::Map<String, Value>,
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_config: Option<OutputConfig>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct OutputConfig {
+    pub effort: Option<Effort>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum Effort {
+    Low,
+    Medium,
+    High,
+    Max,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
