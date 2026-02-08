@@ -26,7 +26,7 @@ pub enum AnthropicError {
     UnexpectedError,
 
     #[error("stream failed: {0}")]
-    StreamError(StreamError),
+    StreamError(#[from] StreamError),
 
     #[error("request rate limited (retry after {} seconds)", retry_after.unwrap_or_default())]
     RateLimit { retry_after: Option<u64> },
@@ -54,6 +54,8 @@ impl std::fmt::Display for StreamError {
         )
     }
 }
+
+impl std::error::Error for StreamError {}
 
 pub(crate) fn map_deserialization_error(e: serde_json::Error, _bytes: &[u8]) -> AnthropicError {
     AnthropicError::DeserializationError(e)
