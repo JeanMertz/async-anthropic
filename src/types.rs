@@ -6,7 +6,7 @@ use std::{
 
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize, Serializer};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use tokio_stream::Stream;
 
 use crate::{errors::AnthropicError, messages};
@@ -194,7 +194,16 @@ pub struct CreateMessagesRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct OutputConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<Effort>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub format: Option<JsonOutputFormat>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum JsonOutputFormat {
+    JsonSchema { schema: Map<String, Value> },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
