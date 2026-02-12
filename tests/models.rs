@@ -1,5 +1,5 @@
 use async_anthropic::{
-    errors::AnthropicError,
+    errors::{AnthropicError, ApiError},
     types::{GetModelResponse, ListModelsResponse},
     Client,
 };
@@ -89,7 +89,13 @@ async fn test_error_handling_bad_request() {
     // Mock 400 Bad Request response
     Mock::given(method("GET"))
         .and(path("/v1/models/model-id"))
-        .respond_with(ResponseTemplate::new(400).set_body_string("Bad request"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(serde_json::json!({
+            "type": "error",
+            "error": {
+                "type": "invalid_request_error",
+                "message": "Bad request"
+            }
+        })))
         .expect(1)
         .mount(&server)
         .await;
@@ -104,7 +110,10 @@ async fn test_error_handling_bad_request() {
 
     assert!(result.is_err());
     assert!(
-        matches!(result.as_ref().unwrap_err(), AnthropicError::BadRequest(_)),
+        matches!(
+            result.as_ref().unwrap_err(),
+            AnthropicError::Api(ApiError { error_type, .. }) if error_type == "invalid_request_error"
+        ),
         "actual: {:?}",
         &result
     );
@@ -118,7 +127,13 @@ async fn test_error_handling_unauthorized() {
     // Mock 401 Unauthorized response
     Mock::given(method("GET"))
         .and(path("/v1/models/model-id"))
-        .respond_with(ResponseTemplate::new(401).set_body_string("Unauthorized"))
+        .respond_with(ResponseTemplate::new(401).set_body_json(serde_json::json!({
+            "type": "error",
+            "error": {
+                "type": "authentication_error",
+                "message": "Unauthorized"
+            }
+        })))
         .expect(1)
         .mount(&server)
         .await;
@@ -133,7 +148,10 @@ async fn test_error_handling_unauthorized() {
 
     assert!(result.is_err());
     assert!(
-        matches!(result.as_ref().unwrap_err(), AnthropicError::Unauthorized),
+        matches!(
+            result.as_ref().unwrap_err(),
+            AnthropicError::Api(ApiError { error_type, .. }) if error_type == "authentication_error"
+        ),
         "actual: {:?}",
         &result
     );

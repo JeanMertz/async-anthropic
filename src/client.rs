@@ -11,7 +11,7 @@ use std::{pin::Pin, time::Duration};
 use tokio_stream::{Stream, StreamExt as _};
 
 use crate::{
-    errors::{map_deserialization_error, AnthropicError, StreamError},
+    errors::{map_deserialization_error, AnthropicError, ApiError, ApiErrorEnvelope},
     messages::Messages,
     models::Models,
 };
@@ -149,7 +149,7 @@ impl Client {
                 .headers(self.headers())
                 .send()
                 .await
-                .map_err(AnthropicError::NetworkError)?;
+                .map_err(AnthropicError::Network)?;
 
             handle_response(response).await
         };
@@ -186,7 +186,7 @@ impl Client {
                 request = request.header("anthropic-beta", beta_value);
             }
 
-            let response = request.send().await.map_err(AnthropicError::NetworkError)?;
+            let response = request.send().await.map_err(AnthropicError::Network)?;
 
             handle_response(response).await
         };
@@ -263,19 +263,7 @@ where
     let overloaded_status = StatusCode::from_u16(529).expect("529 is a valid status code");
 
     match status {
-        StatusCode::OK => response
-            .json::<O>()
-            .await
-            .map_err(AnthropicError::NetworkError),
-        StatusCode::BAD_REQUEST => {
-            let text = response
-                .text()
-                .await
-                .map_err(AnthropicError::NetworkError)?;
-
-            Err(AnthropicError::BadRequest(text))
-        }
-        StatusCode::UNAUTHORIZED => Err(AnthropicError::Unauthorized),
+        StatusCode::OK => response.json::<O>().await.map_err(AnthropicError::Network),
         _ if status == StatusCode::TOO_MANY_REQUESTS || status == overloaded_status => {
             let retry_after = response
                 .headers()
@@ -283,21 +271,16 @@ where
                 .and_then(|h| h.to_str().ok())
                 .and_then(|s| s.parse::<u64>().ok());
 
-            let text = response
-                .text()
-                .await
-                .map_err(AnthropicError::NetworkError)?;
-
-            tracing::warn!("Rate limited: {}", text);
+            let text = response.text().await.map_err(AnthropicError::Network)?;
+            tracing::warn!("Rate limited: {text}");
             Err(AnthropicError::RateLimit { retry_after })
         }
         _ => {
-            let text = response
-                .text()
-                .await
-                .map_err(AnthropicError::NetworkError)?;
-
-            Err(AnthropicError::Unknown(text))
+            let text = response.text().await.map_err(AnthropicError::Network)?;
+            match serde_json::from_str::<ApiErrorEnvelope>(&text) {
+                Ok(envelope) => Err(AnthropicError::Api(envelope.error)),
+                Err(_) => Err(AnthropicError::Unknown(text)),
+            }
         }
     }
 }
@@ -333,11 +316,14 @@ where
                         }
 
                         let response = if event == "error" {
-                            match serde_json::from_str::<StreamError>(&message.data) {
-                                Ok(e) => Err(AnthropicError::StreamError(e)),
-                                Err(e) => {
-                                    Err(map_deserialization_error(e, message.data.as_bytes()))
-                                }
+                            match serde_json::from_str::<ApiErrorEnvelope>(&message.data) {
+                                Ok(envelope) => Err(AnthropicError::Api(envelope.error)),
+                                Err(_) => match serde_json::from_str::<ApiError>(&message.data) {
+                                    Ok(e) => Err(AnthropicError::Api(e)),
+                                    Err(e) => {
+                                        Err(map_deserialization_error(e, message.data.as_bytes()))
+                                    }
+                                },
                             }
                         } else if event_types.contains(&event) {
                             match serde_json::from_str::<O>(&message.data) {
@@ -347,11 +333,9 @@ where
                                 }
                             }
                         } else {
-                            Err(AnthropicError::StreamError(StreamError {
-                                error_type: "unknown_event_type".to_string(),
-                                message: Some(format!("Unknown event type: {event}")),
-                                error: None,
-                            }))
+                            Err(AnthropicError::StreamTransport(format!(
+                                "unknown event type: {event}"
+                            )))
                         };
                         let cancel = response.is_err();
                         if tx.send(response).is_err() || cancel {
@@ -371,11 +355,7 @@ where
                 }
                 Err(e) => {
                     if tx
-                        .send(Err(AnthropicError::StreamError(StreamError {
-                            error_type: "sse_error".to_string(),
-                            message: Some(e.to_string()),
-                            error: None,
-                        })))
+                        .send(Err(AnthropicError::StreamTransport(e.to_string())))
                         .is_err()
                     {
                         // rx dropped

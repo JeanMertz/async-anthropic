@@ -36,8 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }),
                 )]),
                 required: vec!["location".to_string()],
+                additional_properties: None,
             },
             cache_control: None,
+            strict: None,
         })])
         .tool_choice(ToolChoice::auto())
         .build()
@@ -88,8 +90,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }),
                 )]),
                 required: vec!["location".to_string()],
+                additional_properties: None,
             },
             cache_control: None,
+            strict: None,
         })])
         .build()
         .unwrap();
