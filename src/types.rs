@@ -87,6 +87,7 @@ impl ToolChoice {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ExtendedThinking {
     Enabled { budget_tokens: u32 },
+    Disabled,
     Adaptive,
 }
 
