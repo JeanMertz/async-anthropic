@@ -191,6 +191,9 @@ pub struct CreateMessagesRequest {
     #[builder(default)]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_config: Option<OutputConfig>,
+    #[builder(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
