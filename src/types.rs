@@ -540,6 +540,7 @@ pub enum MessageContent {
     ToolResult(ToolResult),
     Text(Text),
     Thinking(Thinking),
+    Document(Document),
 
     /// See Anthropic's docs for more information:
     ///
@@ -705,6 +706,118 @@ impl<S: AsRef<str>> From<S> for Thinking {
             thinking: s.as_ref().to_string(),
             signature: None,
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Document {
+    pub source: DocumentSource,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub citations: Option<CitationsConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_control: Option<CacheControl>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CitationsConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum DocumentSource {
+    Base64 {
+        data: String,
+        media_type: PdfMediaType,
+    },
+    Text {
+        data: String,
+        media_type: PlainTextMediaType,
+    },
+    Content {
+        content: DocumentSourceContent,
+    },
+    Url {
+        url: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PdfMediaType {
+    #[default]
+    #[serde(with = "tags::application_pdf")]
+    ApplicationPdf,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PlainTextMediaType {
+    #[default]
+    #[serde(with = "tags::text_plain")]
+    TextPlain,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub enum DocumentSourceContent {
+    String(String),
+    Blocks(Vec<ContentBlockSourceContent>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ContentBlockSourceContent {
+    Text {
+        text: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControl>,
+    },
+    Image {
+        source: ImageSource,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cache_control: Option<CacheControl>,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ImageSource {
+    Base64 {
+        data: String,
+        media_type: ImageMediaType,
+    },
+    Url {
+        url: String,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub enum ImageMediaType {
+    #[serde(rename = "image/jpeg")]
+    Jpeg,
+    #[serde(rename = "image/png")]
+    Png,
+    #[serde(rename = "image/gif")]
+    Gif,
+    #[serde(rename = "image/webp")]
+    Webp,
+}
+
+impl From<Document> for MessageContent {
+    fn from(document: Document) -> Self {
+        MessageContent::Document(document)
+    }
+}
+
+impl From<Document> for MessageContentList {
+    fn from(document: Document) -> Self {
+        MessageContentList(vec![document.into()])
     }
 }
 
@@ -927,6 +1040,8 @@ mod tags {
     named_unit_variant!(str_replace_based_edit_tool);
     named_unit_variant!(web_search);
     named_unit_variant!(approximate);
+    named_unit_variant!(application_pdf, "application/pdf");
+    named_unit_variant!(text_plain, "text/plain");
 }
 
 #[cfg(test)]
