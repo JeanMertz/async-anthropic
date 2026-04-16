@@ -216,6 +216,8 @@ pub enum Effort {
     Low,
     Medium,
     High,
+    #[serde(rename = "xhigh")]
+    XHigh,
     Max,
 }
 
