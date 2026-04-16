@@ -84,11 +84,25 @@ impl ToolChoice {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ThinkingDisplay {
+    Summarized,
+    Omitted,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ExtendedThinking {
-    Enabled { budget_tokens: u32 },
+    Enabled {
+        budget_tokens: u32,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        display: Option<ThinkingDisplay>,
+    },
     Disabled,
-    Adaptive,
+    Adaptive {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        display: Option<ThinkingDisplay>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, PartialEq, Default)]
