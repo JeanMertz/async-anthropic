@@ -967,6 +967,7 @@ pub enum MessagesStreamEvent {
         usage: Option<Usage>,
     },
     MessageStop,
+    Ping,
 }
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct MessageStart {

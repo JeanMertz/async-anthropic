@@ -40,6 +40,7 @@ impl Messages<'_> {
                 "/v1/messages",
                 request,
                 [
+                    "ping",
                     "message_start",
                     "message_delta",
                     "message_stop",

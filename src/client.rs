@@ -311,10 +311,6 @@ where
                     Event::Open => continue,
                     Event::Message(message) => {
                         let event = message.event.as_str();
-                        if event == "ping" {
-                            continue;
-                        }
-
                         let response = if event == "error" {
                             match serde_json::from_str::<ApiErrorEnvelope>(&message.data) {
                                 Ok(envelope) => Err(AnthropicError::Api(envelope.error)),
