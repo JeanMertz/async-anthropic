@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     num::NonZeroU32,
     ops::{Deref, DerefMut},
     pin::Pin,
@@ -560,11 +561,12 @@ pub enum MessageContent {
 
     /// See Anthropic's docs for more information:
     ///
-    /// > Occasionally Claude’s internal reasoning will be flagged by our safety
-    /// > systems. When this occurs, we encrypt some or all of the thinking
-    /// > block and return it to you as a redacted_thinking block.
-    /// > redacted_thinking blocks are decrypted when passed back to the API,
-    /// > allowing Claude to continue its response without losing context.
+    /// > Occasionally Claude’s internal reasoning will be flagged by our
+    /// > safety systems.
+    /// > When this occurs, we encrypt some or all of the thinking block and
+    /// > return it to you as a redacted\_thinking block. redacted\_thinking
+    /// > blocks are decrypted when passed back to the API, allowing Claude to
+    /// > continue its response without losing context.
     ///
     /// See:
     /// <https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#thinking-redaction>
@@ -998,6 +1000,77 @@ pub struct ListModelsResponse {
     pub last_id: Option<String>,
 }
 
+/// A leaf capability flag: `{ "supported": bool }`.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+pub struct Capability {
+    #[serde(default)]
+    pub supported: bool,
+}
+
+/// A capability with a top-level `supported` flag plus named sub-capabilities
+/// (`effort` levels, `context_management` strategies).
+///
+/// Unknown sub-keys land in `entries`, so new levels/strategies the API adds
+/// never break deserialization.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+pub struct CapabilityGroup {
+    #[serde(default)]
+    pub supported: bool,
+    #[serde(flatten)]
+    pub entries: BTreeMap<String, Capability>,
+}
+
+impl CapabilityGroup {
+    /// Whether the named sub-capability is present and supported.
+    #[must_use]
+    pub fn supports(&self, key: &str) -> bool {
+        self.entries.get(key).is_some_and(|c| c.supported)
+    }
+}
+
+/// The `thinking` capability: a `supported` flag plus supported `types`
+/// (`adaptive`, `enabled`, ...).
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+pub struct ThinkingCapability {
+    #[serde(default)]
+    pub supported: bool,
+    #[serde(default)]
+    pub types: BTreeMap<String, Capability>,
+}
+
+impl ThinkingCapability {
+    /// Whether the named thinking type is present and supported.
+    #[must_use]
+    pub fn supports(&self, ty: &str) -> bool {
+        self.types.get(ty).is_some_and(|c| c.supported)
+    }
+}
+
+/// The `capabilities` object on a model.
+/// Every field defaults so a model that omits a capability (or the API adding
+/// new ones) never breaks parsing.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+pub struct ModelCapabilities {
+    #[serde(default)]
+    pub batch: Capability,
+    #[serde(default)]
+    pub citations: Capability,
+    #[serde(default)]
+    pub code_execution: Capability,
+    #[serde(default)]
+    pub context_management: CapabilityGroup,
+    #[serde(default)]
+    pub effort: CapabilityGroup,
+    #[serde(default)]
+    pub image_input: Capability,
+    #[serde(default)]
+    pub pdf_input: Capability,
+    #[serde(default)]
+    pub structured_outputs: Capability,
+    #[serde(default)]
+    pub thinking: ThinkingCapability,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Model {
     pub created_at: String,
@@ -1005,6 +1078,13 @@ pub struct Model {
     pub id: String,
     #[serde(rename = "type")]
     pub model_type: String,
+
+    #[serde(default)]
+    pub max_input_tokens: u32,
+    #[serde(default)]
+    pub max_tokens: u32,
+    #[serde(default)]
+    pub capabilities: ModelCapabilities,
 }
 
 pub type GetModelResponse = Model;
